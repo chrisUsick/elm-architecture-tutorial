@@ -1,7 +1,7 @@
 import Html exposing (..)
 import Html.Events exposing (..)
 import Random
-
+import Input.Number
 
 
 main =
@@ -18,13 +18,13 @@ main =
 
 
 type alias Model =
-  { dieFace : Int
+  { diceFaces : List Int
   }
 
 
 init : (Model, Cmd Msg)
 init =
-  (Model 1, Cmd.none)
+  (Model (List.repeat 2 1), Cmd.none)
 
 
 
@@ -33,20 +33,34 @@ init =
 
 type Msg
   = Roll
-  | NewFace Int
+  | NumDice Int
+  | NewFaces (List Int)
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Roll ->
-      (model, Random.generate NewFace (Random.int 1 6))
+      (model, Random.generate NewFaces (randomNums 1 6 (List.length model.diceFaces)))
 
-    NewFace newFace ->
-      (Model newFace, Cmd.none)
+    NumDice num ->
+      ({model | diceFaces = (setDiceFaces model.diceFaces num)}, Cmd.none)
 
+    NewFaces newFaces ->
+      (Model newFaces, Cmd.none)
 
+setDiceFaces : List Int -> Int -> List Int
+setDiceFaces faces num =
+  if (num > List.length faces) then
+    List.append faces (List.repeat (num - List.length faces) 0)
+  else if (num < List.length faces) then
+    List.take num faces
+  else
+    faces
 
+randomNums : Int -> Int -> Int -> Random.Generator (List Int)
+randomNums min max size =
+  Random.list size (Random.int min max)
 -- SUBSCRIPTIONS
 
 
@@ -62,6 +76,27 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div []
-    [ h1 [] [ text (toString model.dieFace) ]
+    [ h1 [] (drawDice model.diceFaces)
     , button [ onClick Roll ] [ text "Roll" ]
+    -- , input [onInput NumDice, type_ "number"] []
+    , Input.Number.input
+        {onInput = maybeNumDice
+        , minValue = Just 0
+        , maxValue = Nothing
+        , hasFocus = Nothing
+        , maxLength = Nothing
+        }
+        []
+        (Just (List.length model.diceFaces))
     ]
+maybeNumDice : Maybe Int -> Msg
+maybeNumDice x =
+  case x of
+    Just num ->
+      NumDice num
+    Nothing ->
+      NumDice 0
+
+drawDice : List int -> List (Html Msg)
+drawDice faces =
+  List.map (\face -> div [] [text (toString face)]) faces
